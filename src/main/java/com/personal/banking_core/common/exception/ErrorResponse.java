@@ -1,4 +1,4 @@
-package com.personal.banking_core.customer.exception;
+package com.personal.banking_core.common.exception;
 
 import java.time.LocalDateTime;
 

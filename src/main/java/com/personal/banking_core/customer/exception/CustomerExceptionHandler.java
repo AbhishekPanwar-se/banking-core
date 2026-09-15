@@ -7,10 +7,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.personal.banking_core.common.exception.ErrorResponse;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class CustomerExceptionHandler {
 	
 	@ExceptionHandler(CustomerNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleCustomerNotFound(CustomerNotFoundException ex, HttpServletRequest request){
