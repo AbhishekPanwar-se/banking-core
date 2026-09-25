@@ -15,6 +15,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
@@ -53,6 +54,10 @@ public class Account {
 	@LastModifiedDate
 	@Column(nullable = false)
 	private LocalDateTime updatedAt;
+	
+	@Version
+	@Column(nullable = false)
+	private Integer version;
 	
 	public Account() {}
 
@@ -135,6 +140,14 @@ public class Account {
 
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
+	}
+
+	public Integer getVersion() {
+		return version;
+	}
+
+	public void setVersion(Integer version) {
+		this.version = version;
 	}
 	
 
