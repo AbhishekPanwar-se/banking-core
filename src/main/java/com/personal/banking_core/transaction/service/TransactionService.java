@@ -2,9 +2,12 @@ package com.personal.banking_core.transaction.service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,12 +17,14 @@ import com.personal.banking_core.account.exception.AccountNotFoundException;
 import com.personal.banking_core.account.exception.OperationNotAllowedException;
 import com.personal.banking_core.account.repository.AccountRepository;
 import com.personal.banking_core.transaction.dto.CreateTransactionRequest;
+import com.personal.banking_core.transaction.dto.TransactionHistoryItem;
 import com.personal.banking_core.transaction.dto.TransactionOperation;
 import com.personal.banking_core.transaction.dto.TransactionResponse;
 import com.personal.banking_core.transaction.dto.TransactionSummary;
 import com.personal.banking_core.transaction.entity.IdempotencyRecord;
 import com.personal.banking_core.transaction.entity.Transaction;
 import com.personal.banking_core.transaction.entity.TransactionType;
+import com.personal.banking_core.transaction.exception.TransactionNotFoundException;
 import com.personal.banking_core.transaction.repository.IdempotencyRecordRepository;
 import com.personal.banking_core.transaction.repository.TransactionRepository;
 
@@ -201,5 +206,62 @@ public class TransactionService {
 		IdempotencyRecord idempotencyRecord = new IdempotencyRecord(idempotencyKey, transactionReference);
 		idempotencyRecordRepository.save(idempotencyRecord);
 	}
+	
+	public TransactionResponse getTransactionByReference(String transactionReference) {
+		List<Transaction> transactions = transactionRepository.findByTransactionReferenceOrderByIdAsc(transactionReference);
+		
+		if(transactions.isEmpty()) {
+			throw new TransactionNotFoundException("No transaction found with provided ref : " + transactionReference);
+		}
+		
+		TransactionOperation operation = null;
+		if(transactions.get(0).getTransactionType() == TransactionType.DEPOSIT){
+			operation = TransactionOperation.DEPOSIT;
+		}
+		else if (transactions.get(0).getTransactionType() == TransactionType.WITHDRAWAL) {
+			operation = TransactionOperation.WITHDRAWAL;
+		}
+		else {
+			operation = TransactionOperation.TRANSFER;
+		}
+		
+		
+		List<TransactionSummary> summaryList = new ArrayList<>();
+		
+		for(Transaction trans : transactions) {
+			TransactionSummary summary = new TransactionSummary(trans.getId(), trans.getAccountId(), trans.getTransactionType(), trans.getBalanceAfterTransaction());
+			summaryList.add(summary);
+		}
+		
+		return new TransactionResponse(transactionReference, operation, transactions.get(0).getAmount(), summaryList);
+	}
+
+	public Page<TransactionHistoryItem> getTransactionByAccountId(Long accountId, TransactionOperation transactionOperation, Pageable pageable) {
+		if (!accountRepository.existsById(accountId)) {
+		    throw new AccountNotFoundException(
+		        "No account found with account id : " + accountId);
+		}
+		
+		Page<Transaction> page;
+		
+		if(transactionOperation == null) {
+			page = transactionRepository.findByAccountId(accountId, pageable);
+		}
+		else if(transactionOperation == TransactionOperation.DEPOSIT || transactionOperation == TransactionOperation.WITHDRAWAL) {
+			TransactionType transactionType = transactionOperation == TransactionOperation.DEPOSIT ? TransactionType.DEPOSIT : TransactionType.WITHDRAWAL;
+			page = transactionRepository.findByAccountIdAndTransactionType(accountId, transactionType, pageable);
+		}
+		else {
+			List<TransactionType> list = List.of(TransactionType.TRANSFER_CREDIT, TransactionType.TRANSFER_DEBIT);
+			
+			page = transactionRepository.findByAccountIdAndTransactionTypeIn(accountId, list, pageable);
+		}
+		
+		
+		
+		return page.map(transaction -> new TransactionHistoryItem(transaction.getTransactionReference(), transaction.getAccountId(), transaction.getTransactionType(), transaction.getAmount(), transaction.getBalanceAfterTransaction(), transaction.getTransactionDateTime()));
+	}
+	
+	
 	
 }
